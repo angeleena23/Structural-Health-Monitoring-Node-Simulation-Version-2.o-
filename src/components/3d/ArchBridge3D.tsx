@@ -5,15 +5,25 @@ import { useSimulation } from '../../context/SimulationContext';
 
 export const ArchBridge3D: React.FC = () => {
   const groupRef = useRef<THREE.Group>(null);
-  const { latestReadings } = useSimulation();
+  const { overallStatus } = useSimulation();
 
+  // Dynamic harmonic strain vibration centered strictly around Y=0 (no accumulative downward drift)
   useFrame(({ clock }) => {
     if (groupRef.current) {
       const t = clock.getElapsedTime();
-      const a1 = latestReadings.find(r => r.nodeCode === 'A1');
-      const vibRms = a1 ? a1.filteredVibrationRms : 0.1;
-      const amp = Math.min(0.2, vibRms * 0.12);
-      groupRef.current.position.y = Math.sin(t * 10) * amp;
+      let amp = 0.015;
+      let freq = 2.5;
+
+      if (overallStatus === 'DANGER') {
+        amp = 0.07;
+        freq = 7.0;
+      } else if (overallStatus === 'CAUTION') {
+        amp = 0.035;
+        freq = 4.5;
+      }
+
+      groupRef.current.position.set(0, Math.sin(t * freq) * amp, 0);
+      groupRef.current.rotation.set(0, 0, Math.cos(t * (freq * 0.5)) * (amp * 0.05));
     }
   });
 
@@ -31,7 +41,7 @@ export const ArchBridge3D: React.FC = () => {
   }, []);
 
   return (
-    <group ref={groupRef}>
+    <group ref={groupRef} position={[0, 0, 0]}>
       {/* Horizontal Deck Slab */}
       <mesh position={[0, 0.2, 0]} castShadow receiveShadow>
         <boxGeometry args={[9.5, 0.3, 1.4]} />

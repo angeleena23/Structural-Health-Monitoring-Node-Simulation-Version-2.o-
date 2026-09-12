@@ -2,7 +2,8 @@ import React from 'react';
 import { BRIDGES } from '../data/bridgeData';
 import { NODE_TEMPLATES } from '../data/nodeTemplates';
 import { MCU_CATALOG, SUMMARY_CALLOUT } from '../data/mcuCatalog';
-import { Printer, FileText, CheckCircle } from 'lucide-react';
+import { HAL_PROGRAMS } from '../data/halProgramsData';
+import { Printer, FileText, CheckCircle, Code } from 'lucide-react';
 
 export const ReportPage: React.FC = () => {
   const handlePrint = () => {
@@ -42,7 +43,7 @@ export const ReportPage: React.FC = () => {
             Digital Twin Architectural Rationale & Sensor Node Topology Specifications
           </p>
           <div className="text-xs text-slate-400 print:text-gray-600 font-mono pt-2">
-            Author: Embedded Structural Health Monitoring Team | Revision: 2.0 | Platform: STM32 Microcontrollers
+            Author: Microcontrollers Capstone Team | Course: Microcontrollers & Embedded Systems | Platform: STM32
           </div>
         </div>
 
@@ -130,9 +131,33 @@ export const ReportPage: React.FC = () => {
           </div>
         </section>
 
-        {/* Section 5: Conclusion */}
+        {/* Section 5: STM32 HAL C/C++ Firmware Programs (Professor Course Requirement) */}
+        <section className="space-y-4">
+          <h2 className="text-xl font-bold text-cyan-300 print:text-blue-800 border-b border-white/10 pb-1 flex items-center gap-2">
+            <Code className="w-5 h-5 text-cyan-400" /> 5. STM32 HAL Firmware Programs (Microcontrollers Evaluation)
+          </h2>
+          <p className="text-xs text-slate-300 print:text-gray-800 leading-relaxed">
+            The firmware is written using the STM32 Hardware Abstraction Layer (HAL) in C/C++. Peripherals configured include <strong>TIM2 (200Hz Timer Interrupt)</strong>, <strong>I2C1 (MPU6050 Accelerometer)</strong>, <strong>SPI1 (HX711 24-bit ADC)</strong>, <strong>USART2 (DMA Telemetry)</strong>, and <strong>GPIOA/GPIOB (Alert Output Pins)</strong>.
+          </p>
+
+          <div className="space-y-3 font-mono text-xs">
+            {HAL_PROGRAMS.map((hal) => (
+              <div key={hal.id} className="bg-slate-950 print:bg-gray-100 p-4 rounded-xl border border-white/10 print:border-gray-300 space-y-2">
+                <div className="flex items-center justify-between text-cyan-400 print:text-blue-900 font-bold">
+                  <span>{hal.filename} — {hal.title}</span>
+                  <span className="text-[10px] text-slate-400 print:text-gray-600 font-normal">{hal.targetMcu}</span>
+                </div>
+                <div className="text-[11px] text-slate-300 print:text-gray-800 max-h-40 overflow-y-auto bg-[#050b14] print:bg-white p-3 rounded-lg border border-white/5 print:border-gray-200">
+                  <pre><code>{hal.code.slice(0, 500)}... (Full program available in HAL Programs Explorer)</code></pre>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Section 6: Conclusion */}
         <section className="space-y-2 border-t border-white/10 pt-4">
-          <h2 className="text-lg font-bold text-slate-100 print:text-black">5. Engineering Verification Conclusion</h2>
+          <h2 className="text-lg font-bold text-slate-100 print:text-black">6. Engineering Verification Conclusion</h2>
           <p className="text-xs text-slate-300 print:text-gray-800 leading-relaxed">
             The simulated STM32 SHM digital twin demonstrates that deploying heterogeneous sensor nodes (V-Node, S-Node, L-Node) with localized moving-average filtering provides immediate early detection of structural anomalies long before catastrophic collapse occurs.
           </p>

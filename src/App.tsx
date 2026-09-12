@@ -5,11 +5,11 @@ import { Header } from './components/ui/Header';
 import { Footer } from './components/ui/Footer';
 
 import { HomePage } from './pages/HomePage';
-import { SHMBasicsPage } from './pages/SHMBasicsPage';
 import { BridgeSelectionPage } from './pages/BridgeSelectionPage';
 import { BridgeInfoFrame } from './pages/BridgeInfoFrame';
 import { SensorPlacementFrame } from './pages/SensorPlacementFrame';
 import { SimulationDemoPage } from './pages/SimulationDemoPage';
+import { HALProgramsPage } from './pages/HALProgramsPage';
 import { NodeDesignsPage } from './pages/NodeDesignsPage';
 import { SystemArchPage } from './pages/SystemArchPage';
 import { MCUGuidePage } from './pages/MCUGuidePage';
@@ -31,6 +31,8 @@ const MainContent: React.FC = () => {
         return <SensorPlacementFrame />;
       case 'simulation':
         return <SimulationDemoPage />;
+      case 'hal-programs':
+        return <HALProgramsPage />;
       case 'node-designs':
         return <NodeDesignsPage />;
       case 'system-arch':

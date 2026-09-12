@@ -51,7 +51,7 @@ export const BridgeSelectionPage: React.FC = () => {
         </p>
       </div>
 
-      {/* Grid of 6 Bridge Cards matching Image 3 */}
+      {/* Grid of 6 Bridge Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full text-left">
         {Object.values(BRIDGES).map((bridge) => {
           const baseUnits = BASE_UNITS[bridge.id] || 20;
@@ -64,11 +64,11 @@ export const BridgeSelectionPage: React.FC = () => {
               onClick={() => handleSelectBridge(bridge.id)}
               className="group glass-card rounded-2xl border border-white/10 hover:border-cyan-500/50 overflow-hidden shadow-2xl transition-all transform hover:-translate-y-1 cursor-pointer flex flex-col justify-between bg-slate-900/80"
             >
-              {/* 3D Mini Canvas Preview */}
+              {/* 3D Mini Canvas Preview with Explicit bridgeId prop */}
               <div className="h-52 w-full relative bg-[#050b14] overflow-hidden">
-                <BridgeCanvas cameraPreset="isometric" showNodePins={false} />
+                <BridgeCanvas bridgeId={bridge.id} cameraPreset="isometric" showNodePins={false} />
 
-                {/* Base Units Top-Right Badge matching Image 3 */}
+                {/* Base Units Top-Right Badge */}
                 <div className="absolute top-3 right-3 px-3 py-1 rounded-full backdrop-blur-md bg-slate-950/80 border border-cyan-500/40 text-[11px] font-mono font-bold text-cyan-300 flex items-center gap-1.5 shadow-lg">
                   <Activity className="w-3.5 h-3.5 text-cyan-400" />
                   <span>Base: {baseUnits} units</span>
@@ -89,7 +89,7 @@ export const BridgeSelectionPage: React.FC = () => {
                   </p>
                 </div>
 
-                {/* Card Footer matching Image 3 */}
+                {/* Card Footer */}
                 <div className="pt-3 border-t border-white/10 flex items-center justify-between text-xs font-mono">
                   <span className="text-slate-400">
                     Lifespan: <strong className="text-slate-200">{bridge.typicalLifespan}</strong>

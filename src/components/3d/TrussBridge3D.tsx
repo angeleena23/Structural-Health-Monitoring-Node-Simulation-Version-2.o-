@@ -5,15 +5,24 @@ import { useSimulation } from '../../context/SimulationContext';
 
 export const TrussBridge3D: React.FC = () => {
   const groupRef = useRef<THREE.Group>(null);
-  const { latestReadings } = useSimulation();
+  const { overallStatus } = useSimulation();
 
   useFrame(({ clock }) => {
     if (groupRef.current) {
       const t = clock.getElapsedTime();
-      const t1 = latestReadings.find(r => r.nodeCode === 'T1');
-      const vibRms = t1 ? t1.filteredVibrationRms : 0.12;
-      const amp = Math.min(0.2, vibRms * 0.14);
-      groupRef.current.position.y = Math.sin(t * 14) * amp;
+      let amp = 0.015;
+      let freq = 2.5;
+
+      if (overallStatus === 'DANGER') {
+        amp = 0.07;
+        freq = 7.0;
+      } else if (overallStatus === 'CAUTION') {
+        amp = 0.035;
+        freq = 4.5;
+      }
+
+      groupRef.current.position.set(0, Math.sin(t * freq) * amp, 0);
+      groupRef.current.rotation.set(0, 0, Math.cos(t * (freq * 0.5)) * (amp * 0.05));
     }
   });
 
@@ -23,7 +32,7 @@ export const TrussBridge3D: React.FC = () => {
   const startX = -((panelCount * panelWidth) / 2);
 
   return (
-    <group ref={groupRef}>
+    <group ref={groupRef} position={[0, 0, 0]}>
       {/* Lower Deck Slab */}
       <mesh position={[0, -0.1, 0]} castShadow receiveShadow>
         <boxGeometry args={[panelCount * panelWidth + 0.5, 0.25, 1.4]} />

@@ -10,6 +10,7 @@ export type ScreenView =
   | 'bridge-info'
   | 'sensor-placement'
   | 'simulation'
+  | 'hal-programs'
   | 'node-designs'
   | 'system-arch'
   | 'mcu-guide'
@@ -31,6 +32,8 @@ interface SimulationContextType {
   setSelectedNode: (node: BridgeNode | null) => void;
   scenario: ScenarioMode;
   setScenario: (mode: ScenarioMode) => void;
+  loadSeverity: number;
+  setLoadSeverity: (sev: number) => void;
   latestReadings: SensorReadingSample[];
   vibrationHistory: TimeSeriesPoint[];
   strainHistory: TimeSeriesPoint[];
@@ -38,6 +41,10 @@ interface SimulationContextType {
   overallStatus: AlertStatus;
   isAudioMuted: boolean;
   toggleAudioMute: () => void;
+  audioVolume: number;
+  setAudioVolume: (vol: number) => void;
+  testYellowSound: () => void;
+  testRedSound: () => void;
   applyLoad: (type: LoadType) => void;
   resetSimulation: () => void;
   nextFrameTimerTriggered: boolean;
@@ -50,7 +57,9 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [activeBridgeId, setActiveBridgeId] = useState<string>('beam');
   const [selectedNode, setSelectedNode] = useState<BridgeNode | null>(null);
   const [scenario, setScenario] = useState<ScenarioMode>('normal');
+  const [loadSeverity, setLoadSeverity] = useState<number>(6); // 1 to 10
   const [isAudioMuted, setIsAudioMuted] = useState<boolean>(false);
+  const [audioVolume, setAudioVolumeState] = useState<number>(0.8);
   const [nextFrameTimerTriggered, setNextFrameTimerTriggered] = useState<boolean>(false);
 
   const activeBridge = BRIDGES[activeBridgeId] || BRIDGES['beam'];
@@ -64,7 +73,6 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const lastStatusRef = useRef<AlertStatus>('SAFE');
   const activeLoadRef = useRef<LoadType | null>(null);
 
-  // Auto-next timer trigger for screens 3 and 4 (3 seconds delay)
   useEffect(() => {
     setNextFrameTimerTriggered(false);
     if (activeScreen === 'bridge-info' || activeScreen === 'sensor-placement') {
@@ -75,35 +83,33 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   }, [activeScreen, activeBridgeId]);
 
-  // Helper for computing combined status severity
   const updateSeverity = (current: AlertStatus, next: AlertStatus): AlertStatus => {
     if (current === 'DANGER' || next === 'DANGER') return 'DANGER';
     if (current === 'CAUTION' || next === 'CAUTION') return 'CAUTION';
     return 'SAFE';
   };
 
-  // Main 1Hz simulation tick loop
   useEffect(() => {
     const tick = () => {
       const currentNodes = activeBridge.nodes;
       const samples = sensorEngine.computeTick(currentNodes, scenario);
       setLatestReadings(samples);
 
-      const timeStr = new Date().toLocaleTimeString().slice(3, 8); // MM:SS format
+      const timeStr = new Date().toLocaleTimeString().slice(3, 8);
 
-      // 1. Build Time Series Points for Recharts & calculate max severity via reduce
       const vibPoint: TimeSeriesPoint = { time: timeStr };
       const strainPoint: TimeSeriesPoint = { time: timeStr };
 
       const maxSeverity = samples.reduce<AlertStatus>((acc, sample) => {
-        vibPoint[sample.nodeCode] = sample.filteredVibrationRms;
-        strainPoint[sample.nodeCode] = sample.filteredStrainMicro;
+        vibPoint[`${sample.nodeCode} (Filt)`] = sample.filteredVibrationRms;
+        vibPoint[`${sample.nodeCode} (Raw)`] = sample.rawVibrationRms;
+        strainPoint[`${sample.nodeCode} (Filt)`] = sample.filteredStrainMicro;
+        strainPoint[`${sample.nodeCode} (Raw)`] = sample.rawStrainMicro;
         return updateSeverity(acc, sample.status);
       }, 'SAFE');
 
       setOverallStatus(maxSeverity);
 
-      // Trigger Audio alerts on status transition or sustained danger
       if (maxSeverity === 'DANGER') {
         audioEngine.playRedAlarm();
       } else if (maxSeverity === 'CAUTION' && lastStatusRef.current === 'SAFE') {
@@ -111,17 +117,14 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
       lastStatusRef.current = maxSeverity;
 
-      // 2. Append to history buffer (keep last 20 seconds)
       setVibrationHistory(prev => [...prev.slice(-19), vibPoint]);
       setStrainHistory(prev => [...prev.slice(-19), strainPoint]);
 
-      // 3. Generate diagnostic logs for elevated samples or periodic baseline
       const activeLoads = sensorEngine.getActiveLoads();
       const currentActiveLoad = activeLoads.length > 0 ? activeLoads[0].type : null;
       activeLoadRef.current = currentActiveLoad;
 
       samples.forEach(sample => {
-        // Add log entry if non-safe or every 5 seconds for normal
         if (sample.status !== 'SAFE' || Math.random() < 0.15) {
           const msg = getDiagnosticMessage(
             activeBridgeId,
@@ -145,18 +148,18 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             message: msg
           };
 
-          setLogs(prev => [newLog, ...prev.slice(0, 49)]); // keep latest 50 logs
+          setLogs(prev => [newLog, ...prev.slice(0, 49)]);
         }
       });
     };
 
-    tick(); // immediate initial tick
+    tick();
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
   }, [activeBridgeId, activeBridge, scenario]);
 
   const applyLoad = (type: LoadType) => {
-    sensorEngine.applyLoad(type);
+    sensorEngine.applyLoad(type, loadSeverity);
     activeLoadRef.current = type;
   };
 
@@ -177,6 +180,19 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     audioEngine.setMuted(nextMuted);
   };
 
+  const setAudioVolume = (vol: number) => {
+    setAudioVolumeState(vol);
+    audioEngine.setVolume(vol);
+  };
+
+  const testYellowSound = () => {
+    audioEngine.playYellowBeep();
+  };
+
+  const testRedSound = () => {
+    audioEngine.playRedAlarm();
+  };
+
   return (
     <SimulationContext.Provider
       value={{
@@ -189,6 +205,8 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setSelectedNode,
         scenario,
         setScenario,
+        loadSeverity,
+        setLoadSeverity,
         latestReadings,
         vibrationHistory,
         strainHistory,
@@ -196,6 +214,10 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         overallStatus,
         isAudioMuted,
         toggleAudioMute,
+        audioVolume,
+        setAudioVolume,
+        testYellowSound,
+        testRedSound,
         applyLoad,
         resetSimulation,
         nextFrameTimerTriggered

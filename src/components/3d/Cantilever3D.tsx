@@ -5,64 +5,64 @@ import { useSimulation } from '../../context/SimulationContext';
 
 export const Cantilever3D: React.FC = () => {
   const groupRef = useRef<THREE.Group>(null);
-  const { latestReadings } = useSimulation();
+  const { overallStatus } = useSimulation();
 
   useFrame(({ clock }) => {
     if (groupRef.current) {
       const t = clock.getElapsedTime();
-      const c1 = latestReadings.find(r => r.nodeCode === 'C1');
-      const vibRms = c1 ? c1.filteredVibrationRms : 0.14;
-      const amp = Math.min(0.22, vibRms * 0.15);
-      groupRef.current.position.y = Math.sin(t * 11) * amp;
+      let amp = 0.015;
+      let freq = 2.5;
+
+      if (overallStatus === 'DANGER') {
+        amp = 0.07;
+        freq = 7.0;
+      } else if (overallStatus === 'CAUTION') {
+        amp = 0.035;
+        freq = 4.5;
+      }
+
+      groupRef.current.position.set(0, Math.sin(t * freq) * amp, 0);
+      groupRef.current.rotation.set(0, 0, Math.cos(t * (freq * 0.5)) * (amp * 0.05));
     }
   });
 
   return (
-    <group ref={groupRef}>
-      {/* Continuous Deck Box Girder */}
+    <group ref={groupRef} position={[0, 0, 0]}>
+      {/* Central Suspended Deck Span */}
       <mesh position={[0, 0, 0]} castShadow receiveShadow>
-        <boxGeometry args={[10, 0.35, 1.4]} />
+        <boxGeometry args={[4.5, 0.3, 1.4]} />
         <meshStandardMaterial color="#64748b" roughness={0.4} />
       </mesh>
 
-      {/* Main Vertical Pier Towers (Left Pier & Right Pier) */}
-      {[-3.2, 3.2].map((x, i) => (
-        <group key={i} position={[x, 0, 0]}>
-          {/* Main Pier Column */}
-          <mesh position={[0, -1.5, 0]} castShadow>
-            <boxGeometry args={[1.2, 2.6, 1.6]} />
-            <meshStandardMaterial color="#334155" roughness={0.8} />
+      {/* Cantilever Arm Superstructures (Left & Right Balanced Anchors) */}
+      {[-3.6, 3.6].map((pierX, idx) => (
+        <group key={idx} position={[pierX, 0, 0]}>
+          {/* Main Tower Pier */}
+          <mesh position={[0, 0, 0]} castShadow>
+            <boxGeometry args={[0.8, 4.2, 1.6]} />
+            <meshStandardMaterial color="#475569" roughness={0.5} />
           </mesh>
 
-          {/* Tower Superstructure above pier root (High moment zone) */}
-          {[-0.6, 0.6].map((z, j) => (
-            <group key={j} position={[0, 0, z]}>
-              {/* Vertical Tower Post */}
-              <mesh position={[0, 1.0, 0]}>
-                <boxGeometry args={[0.3, 2.0, 0.12]} />
-                <meshStandardMaterial color="#4f46e5" metalness={0.7} />
+          {/* Cantilever Arm Tapered Trusses */}
+          {[-0.65, 0.65].map((z, k) => (
+            <group key={k} position={[0, 0, z]}>
+              <mesh position={[-1.6, 0.8, 0]} rotation={[0, 0, 0.25]}>
+                <boxGeometry args={[3.2, 0.12, 0.1]} />
+                <meshStandardMaterial color="#0284c7" metalness={0.7} />
               </mesh>
-              {/* Left Tapered Anchor Arm */}
-              <mesh position={[-0.9, 0.5, 0]} rotation={[0, 0, -Math.PI / 8]}>
-                <boxGeometry args={[1.8, 0.15, 0.1]} />
-                <meshStandardMaterial color="#4338ca" metalness={0.7} />
-              </mesh>
-              {/* Right Tapered Cantilever Arm */}
-              <mesh position={[0.9, 0.5, 0]} rotation={[0, 0, Math.PI / 8]}>
-                <boxGeometry args={[1.8, 0.15, 0.1]} />
-                <meshStandardMaterial color="#4338ca" metalness={0.7} />
+              <mesh position={[1.6, 0.8, 0]} rotation={[0, 0, -0.25]}>
+                <boxGeometry args={[3.2, 0.12, 0.1]} />
+                <meshStandardMaterial color="#0284c7" metalness={0.7} />
               </mesh>
             </group>
           ))}
-        </group>
-      ))}
 
-      {/* Expansion Joint Hinges */}
-      {[-1.4, 1.4].map((x, i) => (
-        <mesh key={i} position={[x, 0, 0.72]}>
-          <cylinderGeometry args={[0.08, 0.08, 0.3, 12]} />
-          <meshStandardMaterial color="#f59e0b" metalness={0.9} />
-        </mesh>
+          {/* Concrete Footing */}
+          <mesh position={[0, -2.4, 0]} castShadow>
+            <boxGeometry args={[1.6, 0.6, 1.8]} />
+            <meshStandardMaterial color="#334155" roughness={0.8} />
+          </mesh>
+        </group>
       ))}
     </group>
   );

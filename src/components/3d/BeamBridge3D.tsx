@@ -5,30 +5,29 @@ import { useSimulation } from '../../context/SimulationContext';
 
 export const BeamBridge3D: React.FC = () => {
   const bridgeGroupRef = useRef<THREE.Group>(null);
-  const { overallStatus, latestReadings } = useSimulation();
+  const { overallStatus } = useSimulation();
 
-  // Dynamic vibration & bending displacement physics
   useFrame(({ clock }) => {
     if (bridgeGroupRef.current) {
       const t = clock.getElapsedTime();
-      const b1 = latestReadings.find(r => r.nodeCode === 'B1');
-      const vibRms = b1 ? b1.filteredVibrationRms : 0.1;
+      let amp = 0.015;
+      let freq = 2.5;
 
-      // Vertical vibration oscillation
-      const amp = Math.min(0.25, vibRms * 0.15);
-      bridgeGroupRef.current.position.y = Math.sin(t * 12) * amp;
-
-      // Color stress response under high vibration
       if (overallStatus === 'DANGER') {
-        bridgeGroupRef.current.rotation.z = Math.sin(t * 18) * 0.02;
-      } else {
-        bridgeGroupRef.current.rotation.z = 0;
+        amp = 0.07;
+        freq = 7.0;
+      } else if (overallStatus === 'CAUTION') {
+        amp = 0.035;
+        freq = 4.5;
       }
+
+      bridgeGroupRef.current.position.set(0, Math.sin(t * freq) * amp, 0);
+      bridgeGroupRef.current.rotation.set(0, 0, Math.cos(t * (freq * 0.5)) * (amp * 0.05));
     }
   });
 
   return (
-    <group ref={bridgeGroupRef}>
+    <group ref={bridgeGroupRef} position={[0, 0, 0]}>
       {/* Main Horizontal Concrete Deck Box Girder */}
       <mesh position={[0, 0, 0]} castShadow receiveShadow>
         <boxGeometry args={[9, 0.4, 1.6]} />

@@ -1,10 +1,10 @@
-import React, { useRef } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import React, { useRef, useEffect } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { useSimulation } from '../../context/SimulationContext';
 import { useTheme } from '../../context/ThemeContext';
-import { BridgeNode } from '../../data/bridgeData';
+import { BRIDGES, BridgeNode } from '../../data/bridgeData';
 
 import { BeamBridge3D } from './BeamBridge3D';
 import { ArchBridge3D } from './ArchBridge3D';
@@ -12,6 +12,30 @@ import { TrussBridge3D } from './TrussBridge3D';
 import { Cantilever3D } from './Cantilever3D';
 import { Suspension3D } from './Suspension3D';
 import { CableStayed3D } from './CableStayed3D';
+
+// Camera Controller Helper Hook to handle camera preset updates
+const CameraController: React.FC<{ cameraPreset: string }> = ({ cameraPreset }) => {
+  const { camera } = useThree();
+
+  useEffect(() => {
+    let targetPos: [number, number, number] = [7, 4.5, 8.5];
+    if (cameraPreset === 'top') {
+      targetPos = [0, 14, 0.01];
+    } else if (cameraPreset === 'side') {
+      targetPos = [0, 1, 11];
+    } else if (cameraPreset === 'bottom') {
+      targetPos = [0, -7, 9];
+    } else {
+      targetPos = [7, 4.5, 8.5];
+    }
+
+    camera.position.set(...targetPos);
+    camera.lookAt(0, 0, 0);
+    camera.updateProjectionMatrix();
+  }, [cameraPreset, camera]);
+
+  return null;
+};
 
 interface NodePinProps {
   node: BridgeNode;
@@ -34,39 +58,36 @@ const NodePinMarker: React.FC<NodePinProps> = ({ node, status, onClick }) => {
     return '#10b981';
   };
 
-  const getLedClass = () => {
-    if (status === 'DANGER') return 'led-red bg-rose-500 text-white';
-    if (status === 'CAUTION') return 'led-amber bg-amber-500 text-slate-950';
-    return 'led-emerald bg-emerald-500 text-white';
-  };
-
   return (
     <group position={node.position3D}>
+      {/* Wireframe glowing sphere pin marker */}
       <mesh ref={meshRef} onClick={(e) => { e.stopPropagation(); onClick(); }}>
         <sphereGeometry args={[0.22, 16, 16]} />
         <meshStandardMaterial
           color={getLedColor()}
           emissive={getLedColor()}
           emissiveIntensity={status === 'DANGER' ? 1.5 : 0.8}
-          roughness={0.2}
+          wireframe
         />
       </mesh>
 
-      <Html distanceFactor={12} zIndexRange={[100, 0]}>
-        <button
+      {/* Styled 3D Pin Bubble Label matching reference */}
+      <Html distanceFactor={11} zIndexRange={[100, 0]}>
+        <div
           onClick={onClick}
-          className={`group flex items-center gap-1.5 px-2 py-1 rounded-md shadow-xl text-xs font-semibold backdrop-blur-md border border-white/20 transition-all transform hover:scale-110 cursor-pointer ${getLedClass()}`}
+          className="group flex flex-col items-center p-2 rounded-xl bg-slate-950/80 backdrop-blur-md border border-cyan-500/40 shadow-2xl text-[10px] font-mono cursor-pointer transition-all transform hover:scale-110 min-w-[100px] text-center"
         >
-          <span className="w-2 h-2 rounded-full bg-current animate-ping" />
-          <span className="font-mono">{node.code}</span>
-          <span className="text-[10px] opacity-80 hidden group-hover:inline">{node.nodeTypeId}</span>
-        </button>
+          <div className="flex items-center gap-1">
+            <span className="font-bold text-cyan-300">{node.code}</span>
+            <span className="text-slate-300">({node.roleTag || node.name.split('(')[0].trim()})</span>
+          </div>
+        </div>
       </Html>
     </group>
   );
 };
 
-// 3D Scene Environment & Cyan Grid Floor matching screenshots
+// 3D Scene Environment & Cyan Blueprint Grid Floor
 const SceneEnvironment: React.FC = () => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -74,14 +95,14 @@ const SceneEnvironment: React.FC = () => {
   return (
     <>
       <color attach="background" args={[isDark ? '#050b14' : '#f1f5f9']} />
-      <ambientLight intensity={isDark ? 0.8 : 1.3} />
+      <ambientLight intensity={isDark ? 0.9 : 1.3} />
       <directionalLight position={[12, 18, 12]} intensity={isDark ? 1.3 : 1.6} castShadow />
       <pointLight position={[-10, 10, -10]} intensity={0.6} color="#38bdf8" />
       <pointLight position={[10, -5, 10]} intensity={0.4} color="#10b981" />
 
       {/* Cyan Blueprint Grid Floor */}
       <gridHelper
-        args={[36, 36, isDark ? '#0284c7' : '#0284c7', isDark ? '#072444' : '#cbd5e1']}
+        args={[36, 36, '#0284c7', isDark ? '#072444' : '#cbd5e1']}
         position={[0, -2.5, 0]}
       />
     </>
@@ -89,33 +110,23 @@ const SceneEnvironment: React.FC = () => {
 };
 
 interface BridgeCanvasProps {
+  bridgeId?: string;
   cameraPreset?: 'isometric' | 'orbit' | 'top' | 'side' | 'bottom';
   showNodePins?: boolean;
 }
 
 export const BridgeCanvas: React.FC<BridgeCanvasProps> = ({
+  bridgeId,
   cameraPreset = 'isometric',
   showNodePins = true
 }) => {
-  const { activeBridge, latestReadings, setSelectedNode } = useSimulation();
+  const { activeBridge: contextBridge, latestReadings, setSelectedNode } = useSimulation();
 
-  const getCameraPos = (): [number, number, number] => {
-    switch (cameraPreset) {
-      case 'top':
-        return [0, 12, 0.01];
-      case 'side':
-        return [0, 1, 11];
-      case 'bottom':
-        return [0, -6, 9];
-      case 'isometric':
-      case 'orbit':
-      default:
-        return [7, 4.5, 8.5];
-    }
-  };
+  const targetBridgeId = bridgeId || contextBridge.id;
+  const currentBridge = BRIDGES[targetBridgeId] || contextBridge;
 
   const renderBridge3DModel = () => {
-    switch (activeBridge.id) {
+    switch (targetBridgeId) {
       case 'beam':
         return <BeamBridge3D />;
       case 'arch':
@@ -134,19 +145,20 @@ export const BridgeCanvas: React.FC<BridgeCanvasProps> = ({
   };
 
   return (
-    <div className="w-full h-full min-h-[300px] relative rounded-xl overflow-hidden shadow-2xl bg-[#050b14]">
+    <div className="w-full h-full min-h-[280px] relative rounded-xl overflow-hidden shadow-2xl bg-[#050b14]">
       <Canvas
-        camera={{ position: getCameraPos(), fov: 48 }}
+        camera={{ position: [7, 4.5, 8.5], fov: 48 }}
         shadows
         gl={{ antialias: true, alpha: false }}
         style={{ width: '100%', height: '100%', position: 'absolute', inset: 0 }}
       >
+        <CameraController cameraPreset={cameraPreset} />
         <SceneEnvironment />
 
         {renderBridge3DModel()}
 
         {showNodePins &&
-          activeBridge.nodes.map((node) => {
+          currentBridge.nodes.map((node) => {
             const sample = latestReadings.find((r) => r.nodeCode === node.code);
             const status = sample ? sample.status : 'SAFE';
             return (
